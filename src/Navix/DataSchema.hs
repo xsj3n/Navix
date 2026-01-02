@@ -1,6 +1,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 
-module DataSchema where
+module Navix.DataSchema where
 import GHC.Generics
 import Data.Aeson
 import Database.PostgreSQL.Simple.FromRow

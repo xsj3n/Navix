@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes #-}
 
-module PKI where
+module Navix.PKI where
 
 import System.Process (callCommand)
 import Data.String.Interpolate

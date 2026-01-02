@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module DatabaseInterface where
+module Navix.DatabaseInterface where
 import Database.PostgreSQL.Simple
 import Data.String (fromString)
 

@@ -1,8 +1,8 @@
-module PollResponse where
+module Navix.PollResponse where
 import Network.Wai (Request, getRequestBodyChunk)
 import Database.PostgreSQL.Simple (Connection)
 import qualified Data.ByteString as BS
-import DataSchema (Sha256)
+import Navix.DataSchema (Sha256)
 
 
 readBytes256 :: BS.ByteString -> Request -> IO (Either Sha256 String)

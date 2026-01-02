@@ -1,10 +1,10 @@
-module Registration where
+module Navix.Registration where
 import Network.Wai (Request, getRequestBodyChunk)
 import Database.PostgreSQL.Simple (Connection, execute)
-import DataSchema (NixMachine, NixMachineEnrollment (enrollmentToken), toNixMachine)
+import Navix.DataSchema (NixMachine, NixMachineEnrollment (enrollmentToken), toNixMachine)
 import qualified Data.ByteString.Char8 as BS
 import Control.Monad (void, when)
-import DatabaseInterface (registerMachineQuery)
+import Navix.DatabaseInterface (registerMachineQuery)
 import Data.Aeson (decode)
 import qualified Data.ByteString.Lazy as BSL
 import Data.Maybe

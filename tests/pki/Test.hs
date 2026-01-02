@@ -1,7 +1,6 @@
-module Main (main) where
-
+module Main where
 import Navix.PKI
 
 main :: IO ()
-main = do
+main = undefined
   

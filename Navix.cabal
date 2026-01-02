@@ -16,17 +16,15 @@ extra-doc-files:    CHANGELOG.md
 common warnings
     ghc-options: -Wall
 
-executable Navix
-    import:           warnings
-    main-is:          Main.hs
+library
+    exposed-modules: Navix.PKI,
+                     Navix.DataSchema,
+                     Navix.PollResponse,
+                     Navix.DatabaseInterface,
+                     Navix.Registration
 
-    
-    other-modules:    DatabaseInterface,
-                      DataSchema,
-                      PollResponse,
-                      Registration,
-                      PKI 
-    
+    hs-source-dirs: src
+
     build-depends:  aeson,
                     directory,
                     string-interpolate,
@@ -50,6 +48,36 @@ executable Navix
                     network,
                     base
 
+    default-language: GHC2024
+
+executable Navix
+    import:           warnings
+    main-is:          Main.hs
+    
+    build-depends:  base,
+                    aeson,
+                    directory,
+                    string-interpolate,
+                    postgresql-simple,
+                    crypton,
+                    pem,
+                    crypton-x509,
+                    crypton-x509-validation,
+                    crypton-x509-store,
+                    bytestring,
+                    uuid,
+                    process,
+                    text,
+                    http-types,
+                    zlib,
+                    extra,
+                    warp,
+                    warp-tls,
+                    tls,
+                    wai,
+                    network,
+                    Navix
+
 
     build-depends:    base ^>=4.20.2.0
     hs-source-dirs:   app
@@ -57,7 +85,8 @@ executable Navix
 
 test-suite pki-test
     type: exitcode-stdio-1.0
-    hs-source-dirs: tests/pki, app
+    hs-source-dirs: tests/pki/
     main-is: Test.hs
     build-depends: base,
                    Navix
+    default-language: GHC2024

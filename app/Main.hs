@@ -14,8 +14,8 @@ import System.Exit
 import qualified Data.Text as T
 import qualified Data.ByteString.Char8 as BS
 import qualified Data.ByteString.Lazy  as BSL
-import DatabaseInterface
-import DataSchema
+import Navix.DatabaseInterface
+import Navix.DataSchema
 import Database.PostgreSQL.Simple
 import Control.Monad (void, when, unless)
 import Data.Int (Int64)
@@ -30,11 +30,8 @@ import Control.Monad.Extra (unlessM, whenM)
 import Data.List.Extra (splitOn)
 import Data.List
 import System.Directory (copyFile)
-import Data.X509.Validation
-import Data.X509.CertificateStore
-import Data.X509
-import Registration
-import qualified PKI as PKI
+import Navix.Registration
+import qualified Navix.PKI as PKI
 
 
 -- mutualTLSSettings :: TLSSettings
