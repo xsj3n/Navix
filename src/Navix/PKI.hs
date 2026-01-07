@@ -9,27 +9,44 @@ import System.Directory (doesFileExist)
 import Data.X509
 import Data.X509.Validation
 import Data.X509.CertificateStore
+import System.Directory.Extra (doesDirectoryExist, createDirectory)
+import Control.Monad (unless)
+import Control.Monad.Extra
+import qualified Data.ByteString as BS
+import Data.X509.File (readSignedObject)
+import Data.Foldable (for_)
+
+certStoreDir :: FilePath
+certStoreDir = "./cert-store/"
+
+tlsPKIDir :: FilePath
+tlsPKIDir = certStoreDir ++ "transport/"
 
 rootCertPath :: FilePath
-rootCertPath = "./cert-store/root-crt.pem"
+rootCertPath = certStoreDir ++ "root-crt.pem"
 
 rootKeyPath :: FilePath
-rootKeyPath = "./cert-store/root-key.pem"
+rootKeyPath = certStoreDir ++ "root-key.pem"
 
 tlsCertPath :: FilePath
-tlsCertPath = "./cert-store/transport/tls-crt.pem"
+tlsCertPath = tlsPKIDir ++ "tls-crt.pem"
 
 tlsKeyPath :: FilePath
-tlsKeyPath = "./cert-store/transport/tls-key.pem"
+tlsKeyPath = tlsPKIDir ++ "tls-key.pem"
 
 tlsCSRPath :: FilePath
-tlsCSRPath = "./cert-store/transport/tls-csr.pem"
+tlsCSRPath = tlsPKIDir ++ "tls-csr.pem"
 
 defaultRootSubject :: String
-defaultRootSubject = "'/C=/ST=/L=/O=/CN=Navix'"
+defaultRootSubject = "\"/C=/ST=/L=/O=/CN=Navix\""
 
 defaultTLSSubject :: String
-defaultTLSSubject = "'/C=/ST=/L=/O=/CN=Navix.local'"
+defaultTLSSubject = "\"/C=/ST=/L=/O=/CN=Navix.local\""
+
+
+-- make configurable later
+defaultSAN :: String
+defaultSAN = "\"subjectAltName=DNS:Navix.local,DNS:www.Navix.local\""
 
 type CurveType = String 
 curveConfig :: String
@@ -44,7 +61,7 @@ createECKey curve path = callCommand $
 createSelfSignedCert :: FilePath -> FilePath -> IO ()
 createSelfSignedCert inputKeyPath outputCertPath= callCommand $
   [iii|
-  openssl req -x509 -new -nodes -sha256 -days 3650
+  openssl req -x509 -new -noenc -sha256 -days 3650
   -key #{inputKeyPath}
   -out #{outputCertPath}
   -subj #{defaultRootSubject}
@@ -52,7 +69,13 @@ createSelfSignedCert inputKeyPath outputCertPath= callCommand $
 
 createTLSCSR :: FilePath -> FilePath -> IO ()
 createTLSCSR inputKeyPath outputCSRPath = callCommand $
-  [i|openssl req -new -key #{inputKeyPath} -out #{outputCSRPath} -subj #{defaultTLSSubject}|]
+  [iii|
+  openssl req -new
+  -key #{inputKeyPath}
+  -out #{outputCSRPath}
+  -subj #{defaultTLSSubject}
+  -addext #{defaultSAN}
+  |]
 
 signTLSCSR :: FilePath -> FilePath -> FilePath -> FilePath -> IO ()
 signTLSCSR inputCSRPath outputCertPath inputRootKeyPath inputRootCertPath = callCommand $
@@ -60,26 +83,51 @@ signTLSCSR inputCSRPath outputCertPath inputRootKeyPath inputRootCertPath = call
   openssl x509 -req
   -in #{inputCSRPath}
   -CA #{inputRootCertPath}
-  -CAKey #{inputRootKeyPath}
+  -CAkey #{inputRootKeyPath}
   -out #{outputCertPath}
-  -CAcreateserial -days 3650 -sha256
-  -addext "subjectAltName = DNS:Navix.local,DNS:www.Navix.local"
+  -days 360 -sha256
   |] 
 
 -- TODO: error handling when im not a lazy fucking chud
 -- PKI not provided 
 initPKI :: IO ()
 initPKI = do
+  unlessM (doesDirectoryExist certStoreDir) (createDirectory certStoreDir)
+  unlessM (doesDirectoryExist tlsPKIDir) (createDirectory tlsPKIDir)
+
   createECKey curveConfig rootKeyPath
   createSelfSignedCert rootKeyPath rootCertPath
 
-  createECKey  curveConfig tlsKeyPath
+  createECKey  curveConfig  tlsKeyPath
   createTLSCSR tlsKeyPath   tlsCSRPath
   signTLSCSR   tlsCSRPath   tlsCertPath rootKeyPath rootCertPath
+
+
+verifyPKI :: String -> IO [FailedReason]
+verifyPKI serviceID = do
+  certStoreMaybe <- readCertificateStore certStoreDir
+  certStore      <- case certStoreMaybe of
+                      Just cs   -> return cs
+                      otherwise -> error $ "[!] Unable to parse or find certs in " ++ certStoreDir
+  cert           <- CertificateChain <$> readSignedObject tlsCertPath
+
+
+  validate HashSHA256
+           defaultHooks
+           defaultChecks
+           certStore
+           defaultValidationCache
+           (serviceID, BS.empty)
+           cert 
+  
   
 
-verifyPKI :: undefined
-verifyPKI = undefined
+
+printReasons :: FailedReason -> IO ()
+printReasons reason = putStrLn $ "[!] Check failed: " ++ (show reason)
+
+printAllReasons :: [FailedReason] -> IO ()
+printAllReasons reasons = for_ reasons printReasons
 
 
 

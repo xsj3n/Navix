@@ -1,2 +1,0 @@
-2026-01-02 11:59:18.507 MST [11600] FATAL:  lock file "postmaster.pid" already exists
-2026-01-02 11:59:18.507 MST [11600] HINT:  Is another postmaster (PID 5194) running in data directory "/home/xs/src/Navix/database"?

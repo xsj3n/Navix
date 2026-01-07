@@ -88,5 +88,7 @@ test-suite pki-test
     hs-source-dirs: tests/pki/
     main-is: Test.hs
     build-depends: base,
+                   extra,
+                   crypton-x509-validation,
                    Navix
     default-language: GHC2024

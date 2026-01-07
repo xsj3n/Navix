@@ -9,21 +9,32 @@ import Database.PostgreSQL.Simple.ToField
 import Data.ByteString
 
 
-data NixMachineEnrollment = NixMachineEnrollment {
-  enrollmentToken :: String, 
-  enrollmentserialNumber :: String,
-  enrollmentmacAddr :: String,
-  enrollmentpublicKey :: String
-} deriving (Generic, Show)
+
+
+
+
+data PollAnswer = PollAnswer
+  { rebuildRequired :: Bool
+  , restartRequired :: Bool
+  } deriving (Generic, Show)
+
+
+------------------------------
+data NixMachineEnrollment = NixMachineEnrollment
+  { enrollmentToken :: String 
+  , enrollmentserialNumber :: String
+  , enrollmentmacAddr :: String
+  , enrollmentpublicKey :: String
+  } deriving (Generic, Show)
 
 instance FromJSON NixMachineEnrollment where
 instance ToJSON   NixMachineEnrollment where
 ------------------------------
-data NixMachine = NixMachine {
-  serialNumber :: String,
-  macAddr :: String,
-  publicKey :: String
-} deriving (Generic, Show)
+data NixMachine = NixMachine
+  { serialNumber :: String
+  , macAddr :: String
+  , publicKey :: String
+  } deriving (Generic, Show)
 
 
 instance FromJSON NixMachine where

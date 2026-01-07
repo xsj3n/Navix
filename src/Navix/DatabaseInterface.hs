@@ -1,8 +1,17 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Navix.DatabaseInterface where
+module Navix.DatabaseInterface
+  ( getDatabaseConnection
+  , registerMachineQuery
+  , DatabaseConnection 
+  ) where
+
 import Database.PostgreSQL.Simple
 import Data.String (fromString)
+import Data.Int (Int64)
+import Control.Monad (void, unless)
+
+type DatabaseConnection = Connection
 
 getConnection :: IO Connection
 getConnection = connect getConnectionInfo
@@ -48,3 +57,14 @@ createMachinesTableQuery = fromString $ unlines [
 registerMachineQuery :: Query
 registerMachineQuery = "insert into nixmachines (serial_number, mac_addr, public_key) values (?, ?, ?);"
 
+-- Create db and default table if db is absent, returns used connection 
+getDatabaseConnection :: IO Connection
+getDatabaseConnection = do
+  superUserConnection <- getSuperUserConnection
+  putStrLn "[*] Connected to database as superuser for database check"
+  [Only (result :: Bool)] <- query_ superUserConnection checkForDatabaseQuery
+  unless result $ void (execute_ superUserConnection createDatabaseQuery :: IO Int64)
+  close superUserConnection
+  databaseConnection <- getConnection
+  unless result $ void (execute_ databaseConnection createMachinesTableQuery :: IO Int64)
+  return databaseConnection 
