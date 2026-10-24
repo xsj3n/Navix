@@ -131,15 +131,15 @@ printAllReasons reasons = for_ reasons printReasons
 
 
 
-data TransportCertStatus = KeyMissing | CertMissing | KeyAndCertMissing | TransOkay | TransCheckError
+-- data TransportCertStatus = KeyMissing | CertMissing | KeyAndCertMissing | TransOkay | TransCheckError
 
-chkTransportCertAndKey :: IO TransportCertStatus
-chkTransportCertAndKey = do
-  keyStatus  <- doesFileExist tlsKeyPath
-  certStatus <- doesFileExist tlsCertPath
-  if keyStatus && certStatus              then return TransOkay
-  else if not keyStatus && not certStatus then return KeyAndCertMissing
-  else if not keyStatus                   then return KeyMissing
-  else if not certStatus                  then return CertMissing
-  else return TransCheckError
+-- chkTransportCertAndKey :: IO TransportCertStatus
+-- chkTransportCertAndKey = do
+--   keyStatus  <- doesFileExist tlsKeyPath
+--   certStatus <- doesFileExist tlsCertPath
+--   if keyStatus && certStatus              then return TransOkay
+--   else if not keyStatus && not certStatus then return KeyAndCertMissing
+--   else if not keyStatus                   then return KeyMissing
+--   else if not certStatus                  then return CertMissing
+--   else return TransCheckError
 

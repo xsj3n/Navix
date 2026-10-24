@@ -4,6 +4,7 @@ module Main where
 import qualified Navix.DatabaseInterface as DB
 import Navix.DataSchema
 import Navix.Registration
+import Navix.TLS
 import qualified Navix.PKI as PKI
 
 import qualified Network.TLS as TLS
@@ -33,25 +34,22 @@ import Control.Monad.Extra (unlessM, whenM)
 import Data.List.Extra (splitOn)
 import Data.List
 import System.Directory (copyFile)
-
--- mutualTLSSettings :: TLSSettings
--- mTLSSettings = defaultTlsSetings
---   { tlsWantClientCert = True
---   , tlsServerHooks = TLS.defaultServerHooks
---   }
-
--- clientCertificateHandler :: 
+import Database.PostgreSQL.Simple (Connection)
 
 
--- mutualTLSServerHooks :: ServerHooks
--- mTLSServerHooks = TLS.defaultServerHooks
---  { onClientCertificate = \chain -> if 
---   }
+isRegisterRequest :: Method -> String -> Bool
+isRegisterRequest method action = method == methodPost && action == "register"
+
+isDeregisterRequest :: Method -> String -> Bool
+isDeregisterRequest method action = method == methodPost && action == "deregister"
+
+isPoll :: Method -> String -> Bool
+isPoll method action = method == methodGet && action == "poll"
 
 main :: IO ()
 main = do
 
-  -- TODO: implement allowances for pre-configured   
+   -- TODO: implement allowances for pre-configured   
   whenM (null <$> listFiles PKI.certStoreDir) PKI.initPKI  
   failuresList <- PKI.verifyPKI "Navix.local" 
   unless (null failuresList) (PKI.printAllReasons failuresList >> exitFailure)
@@ -62,6 +60,7 @@ main = do
   
   databaseConnection <- DB.getDatabaseConnection
   -- maybe this should be the same as whats kept in the cert-store, maybe not
+  -- let tlsOpts = mutualTLSSettings PKI.tlsCertPath PKI.tlsKeyPath
   let tlsOpts = tlsSettings PKI.tlsCertPath PKI.tlsKeyPath
   let port = 3000
 
@@ -69,16 +68,15 @@ main = do
   runTLS tlsOpts (setPort port defaultSettings) $ app databaseConnection
 
 -- introduce pooled connections at some point 
-app :: DB.DatabaseConnection -> Application
+app :: Connection -> Application
 app connection request respond
-  | reqType == methodPost && action == "register" = registerMachine request connection >>= (respond . simpleResponse)
-  | reqType == methodPost && action == "deregister" = undefined
-  | reqType == methodGet && action == "poll" = undefined
+  | isRegisterRequest method action = registerMachine request connection >>= (respond . simpleResponse)
+  | isDeregisterRequest method action = undefined
+  | isPoll method action = undefined
   | otherwise = respond $ responseLBS status400 [] "Malformed request"
   where
-    reqType = requestMethod request
+    method = requestMethod request
     action = T.unpack $ last $ pathInfo request
-
 
 
 

@@ -3,59 +3,71 @@
 module Navix.DataSchema where
 import GHC.Generics
 import Data.Aeson
+import qualified Data.Aeson.KeyMap as KM
 import Database.PostgreSQL.Simple.FromRow
 import Database.PostgreSQL.Simple.ToRow
 import Database.PostgreSQL.Simple.ToField
-import Data.ByteString
 
 
 
-
-
-
-data PollAnswer = PollAnswer
-  { rebuildRequired :: Bool
-  , restartRequired :: Bool
+data PollResponse = PollResponse
+  { wipe          :: Bool
+  , rebuild       :: Bool
+  , reboot        :: Bool 
+  , script        :: Bool
+  , rotateRootPwd :: Bool
+  , rotateLUKS    :: Bool
+  , malwareScan   :: Bool 
   } deriving (Generic, Show)
 
 
+instance FromJSON PollResponse where
+instance ToJSON   PollResponse where
+instance ToRow PollResponse where
+  toRow (PollResponse wipe rebuild reboot script rotateRootPwd rotateLUKS malwareScan) =
+      [ toField wipe
+      , toField rebuild
+      , toField reboot
+      , toField script
+      , toField rotateRootPwd
+      , toField rotateLUKS
+      , toField malwareScan
+      ]
+instance FromRow PollResponse where
+    fromRow = PollResponse <$> field <*> field <*> field <*> field <*> field <*> field <*> field
 ------------------------------
-data NixMachineEnrollment = NixMachineEnrollment
-  { enrollmentToken :: String 
-  , enrollmentserialNumber :: String
-  , enrollmentmacAddr :: String
-  , enrollmentpublicKey :: String
+data NixMachine = NixMachine
+  { assignedCert        :: String
+  , hardwareFingerprint :: String
   } deriving (Generic, Show)
 
 instance FromJSON NixMachineEnrollment where
 instance ToJSON   NixMachineEnrollment where
-------------------------------
-data NixMachine = NixMachine
-  { serialNumber :: String
-  , macAddr :: String
-  , publicKey :: String
+
+instance ToRow NixMachine where
+  toRow (NixMachine assignedCert hardwareFingerprint) =
+    [ toField assignedCert
+    , toField hardwareFingerprint
+    ]
+
+instance FromRow NixMachine where
+  fromRow = NixMachine <$> field <*> field
+
+----------
+
+data NixMachineEnrollment = NixMachineEnrollment
+  { enrollmentToken :: String
+  , machineDetails  :: NixMachine
   } deriving (Generic, Show)
 
 
 instance FromJSON NixMachine where
 instance ToJSON   NixMachine where
 
-instance FromRow NixMachine where
-  fromRow = NixMachine <$> field <*> field <*> field
-
-instance ToRow NixMachine where
-  toRow machine =
-    [ toField $ serialNumber machine
-    , toField $ macAddr machine
-    , toField $ publicKey machine
-    ]
 ------------------------------
 
-toNixMachine :: NixMachineEnrollment -> NixMachine
-toNixMachine enrollmentObject = NixMachine
-  { serialNumber = enrollmentToken enrollmentObject
-  , macAddr      = enrollmentmacAddr enrollmentObject
-  , publicKey    = enrollmentpublicKey enrollmentObject
-  }
 
-type Sha256 = ByteString
+getfieldNames :: (ToJSON a) => a -> [String]
+getfieldNames x = case toJSON x of
+  Object o -> map show (KM.keys o)
+  _        -> []

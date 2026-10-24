@@ -19,13 +19,16 @@ common warnings
 library
     exposed-modules: Navix.PKI,
                      Navix.DataSchema,
-                     Navix.PollResponse,
+                     Navix.Net,
                      Navix.DatabaseInterface,
-                     Navix.Registration
-
+                     Navix.Registration,
+                     Navix.TLS
+                    
     hs-source-dirs: src
 
-    build-depends:  aeson,
+    build-depends:  filepath,
+                    generic-data,
+                    aeson,
                     directory,
                     string-interpolate,
                     postgresql-simple,
@@ -90,5 +93,14 @@ test-suite pki-test
     build-depends: base,
                    extra,
                    crypton-x509-validation,
+                   Navix
+    default-language: GHC2024
+
+test-suite query-test
+    type: exitcode-stdio-1.0
+    hs-source-dirs: tests/query/
+    main-is: Test.hs
+    build-depends: base,
+                   extra,
                    Navix
     default-language: GHC2024

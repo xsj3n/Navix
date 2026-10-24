@@ -6,27 +6,26 @@
     nixpkgs-cabal31420.url = "github:nixos/nixpkgs/f4b140d5b253f5e2a1ff4e5506edbf8267724bde";
     };
 
-  outputs = { self , nixpkgs, nixpkgs-cabal31420, ... }:
+  outputs = { nixpkgs, ... }:
   let
     name = "Navix"; 
     system = "x86_64-linux";
     src = ./.;
     pkgs = import nixpkgs { inherit system; };
-    hpkgs = pkgs.haskellPackages;
-    c31420 = import nixpkgs-cabal31420 { inherit system; };
+    hpkgs = pkgs.haskell.packages.ghc910;
     haskell_tools = with hpkgs; [
       haskell-language-server
-      c31420.cabal-install
+      cabal-install
     ];
     tools = with pkgs; [
       zlib
+      postgres-language-server
       openssl
       postgresql
-      haskell.compiler.native-bignum.ghcHEAD
       pkg-config
     ];
 
-    shellPackages = with pkgs; [
+    shellPackages = [
       hpkgs.hoogle
     ];
         

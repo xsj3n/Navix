@@ -1,0 +1,10 @@
+cradle:
+  cabal:
+    - path: "src"
+      component: "lib:Navix"
+    - path: "app"
+      component: "exe:Navix"
+    - path: "tests/pki"
+      component: "test:pki-test"
+    - path: "tests/query"
+      component: "test:query-test"

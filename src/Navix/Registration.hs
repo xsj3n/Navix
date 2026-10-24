@@ -1,40 +1,32 @@
 module Navix.Registration where
 import Network.Wai (Request, getRequestBodyChunk)
 import Database.PostgreSQL.Simple (Connection, execute)
-import Navix.DataSchema (NixMachine, NixMachineEnrollment (enrollmentToken), toNixMachine)
+import Navix.DataSchema (NixMachine, NixMachineEnrollment (enrollmentToken, machineDetails))
 import qualified Data.ByteString.Char8 as BS
 import Control.Monad (void, when)
-import Navix.DatabaseInterface (registerMachineQuery)
+import Navix.DatabaseInterface (getRegistrationQuery)
 import Data.Aeson (decode)
 import qualified Data.ByteString.Lazy as BSL
 import Data.Maybe
 import System.IO (openFile, IOMode (WriteMode), hClose)
 
 
-enrollmentTokenFilePath :: String
-enrollmentTokenFilePath = "./enrollment_tokens"
-
-createEnrollmentTokenFile :: Bool -> IO ()
-createEnrollmentTokenFile isPresent = if isPresent then return ()
-                                       else openFile enrollmentTokenFilePath WriteMode >>= hClose
 
 registerMachine :: Request -> Connection -> IO Bool
 registerMachine request conn = do
   maybenixMachine       <- processNixMachineEnrollRequest request BS.empty
   case maybenixMachine of
     Just nixMachineEnrollment -> enrollmentTokenSearch (enrollmentToken nixMachineEnrollment) >>= \isValid ->
-        executeRegistration isValid conn $ toNixMachine nixMachineEnrollment
+        executeRegistration isValid conn $ machineDetails nixMachineEnrollment
     Nothing  -> return False
 
 executeRegistration :: Bool -> Connection -> NixMachine -> IO Bool
-executeRegistration isValidToken conn nixMachine = when isValidToken (void $ execute conn registerMachineQuery nixMachine) >> return True
+executeRegistration isValidToken conn nixMachine = do
+  query <- getRegistrationQuery
+  when isValidToken (void $ execute conn query nixMachine) >> return True
 
 deregisterMachine :: Connection -> String -> ()
 deregisterMachine = undefined
-
--- search file for enrollment token, in time perhaps this will live in the DB, local file for now
-enrollmentTokenSearch :: String -> IO Bool
-enrollmentTokenSearch submission = elem submission . lines <$> readFile enrollmentTokenFilePath
 
 
 -- maybe i can generalize this 

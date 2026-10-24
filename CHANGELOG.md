@@ -1,5 +1,13 @@
 # Revision history for Navix
 
-## 0.1.0.0 -- YYYY-mm-dd
+## 0.0.1
 
-* First version. Released on an unsuspecting world.
+## Added
+
+- SQL queries kept under `/queries` to keep the DB logic separate from the code
+- Utilities for reading the queries from the files
+
+## Changed
+
+- Changed the data structure layout 
+
