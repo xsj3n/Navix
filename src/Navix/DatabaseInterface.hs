@@ -20,6 +20,8 @@ import Data.List.Extra (splitOn, trim)
 import Data.Foldable (for_)
 import System.Directory (listDirectory)
 import System.FilePath ((</>))
+import Crypto.Hash (Digest)
+import Data.ByteString (ByteString)
 
 
 getConnection :: IO Connection
@@ -58,6 +60,20 @@ getDatabaseConnection = do
   getConnection
 
 
+-- enrollment related
+insertToken :: Connection -> ByteString  -> IO Int64
+insertToken con tokenHash = do
+  query <- insertEnrollmentTokenQuery
+  execute con query $ Only $ Binary tokenHash
+
+getTokenInfo :: (ToRow r) => Connection -> ByteString -> IO [r] 
+getTokenInfo con hash = 
+
+validateToken :: Connection -> ByteString -> IO Int64
+validateToken con tokenHash = do
+  beginTransaction con
+  
+  pure 0
 --- sql query function helpers 
 runQueries_ :: Connection -> [Query] -> IO Int64
 runQueries_ con queries = sum <$> mapM (execute_ con) queries 
@@ -93,3 +109,9 @@ checkForDatabaseQuery = "select exists (select 1 from pg_database where datname 
 
 createDatabaseQuery :: IO [Query]
 createDatabaseQuery = readQueryFiles "./queries/init/table-creation.sql"
+
+insertEnrollmentTokenQuery :: IO Query
+insertEnrollmentTokenQuery = readQueryFile "./queries/registration/insert-token.sql" 
+
+getTokenInfoQuery :: IO Query
+getTokenInfoQuery = readQueryFile "./queries/registration/get-token-validation-info.sql"

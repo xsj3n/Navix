@@ -22,7 +22,8 @@ library
                      Navix.Net,
                      Navix.DatabaseInterface,
                      Navix.Registration,
-                     Navix.TLS
+                     Navix.TLS,
+                     Navix.Log
                     
     hs-source-dirs: src
 
@@ -43,12 +44,14 @@ library
                     text,
                     http-types,
                     zlib,
+                    memory,
                     extra,
                     warp,
                     warp-tls,
                     tls,
                     wai,
                     network,
+                    time,
                     base
 
     default-language: GHC2024
@@ -102,5 +105,13 @@ test-suite query-test
     main-is: Test.hs
     build-depends: base,
                    extra,
+                   Navix
+    default-language: GHC2024
+
+test-suite log-test
+    type: exitcode-stdio-1.0
+    hs-source-dirs: tests/log/
+    main-is: Test.hs
+    build-depends: base,
                    Navix
     default-language: GHC2024

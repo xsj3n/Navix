@@ -8,3 +8,5 @@ cradle:
       component: "test:pki-test"
     - path: "tests/query"
       component: "test:query-test"
+    - path: "tests/log"
+      component: "test:log-test"

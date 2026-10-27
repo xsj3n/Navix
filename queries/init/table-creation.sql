@@ -27,11 +27,9 @@ create table if not exists nix.enrollment_tokens(
     id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     token_hash bytea not null unique,
     created_at timestamptz not null default now(),
-    expires_at timestamptz not null,
+    expires_at timestamptz not null default now() + interval '1 hour',
     used_at timestamptz,
     revoked_at timestamptz
 );
---
--- this will only be ran on startup by the server so no need to wait for lock 
 --
 create index idxMachineActionsRefId on nix.machine_actions(machineId);
