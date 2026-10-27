@@ -7,6 +7,7 @@ import qualified Data.Aeson.KeyMap as KM
 import Database.PostgreSQL.Simple.FromRow
 import Database.PostgreSQL.Simple.ToRow
 import Database.PostgreSQL.Simple.ToField
+import Data.Time (UTCTime)
 
 
 
@@ -67,6 +68,17 @@ instance ToJSON   NixMachine where
 ------------------------------
 
 
+data TokenValidityInfo = TokenValidityInfo
+  {
+    expiresAt :: UTCTime,
+    revokedAt :: Maybe UTCTime,
+    usedAt    :: Maybe UTCTime
+  } deriving (Generic, Show)
+
+instance FromRow TokenValidityInfo where
+  fromRow = TokenValidityInfo <$> field <*> field <*> field
+
+------------------------------
 getfieldNames :: (ToJSON a) => a -> [String]
 getfieldNames x = case toJSON x of
   Object o -> map show (KM.keys o)

@@ -3,10 +3,13 @@
 module Navix.DatabaseInterface
   ( getDatabaseConnection
   , getRegistrationQuery
+  , consumeToken
+  , getTokenInfo
+  , insertToken
   , readQueryFile
   , readQueryFiles
   ) where
-
+import Navix.DataSchema (NixMachine (NixMachine), TokenValidityInfo (TokenValidityInfo))
 import Data.Typeable
 import Database.PostgreSQL.Simple
 import Data.String.Interpolate
@@ -14,7 +17,6 @@ import Data.String (fromString)
 import Data.Int (Int64)
 import Control.Monad (void, unless)
 import Generic.Data (gdatatypeName)
-import Navix.DataSchema (NixMachine (NixMachine), getfieldNames)
 import System.Directory.Extra (listDirectories)
 import Data.List.Extra (splitOn, trim)
 import Data.Foldable (for_)
@@ -22,6 +24,7 @@ import System.Directory (listDirectory)
 import System.FilePath ((</>))
 import Crypto.Hash (Digest)
 import Data.ByteString (ByteString)
+import Data.Time (UTCTime)
 
 
 getConnection :: IO Connection
@@ -61,19 +64,25 @@ getDatabaseConnection = do
 
 
 -- enrollment related
+
+---- this shouldnt fail unless the connection fails 
 insertToken :: Connection -> ByteString  -> IO Int64
 insertToken con tokenHash = do
-  query <- insertEnrollmentTokenQuery
-  execute con query $ Only $ Binary tokenHash
+  sQuery <- insertEnrollmentTokenQuery
+  execute con sQuery $ Only $ Binary tokenHash
 
-getTokenInfo :: (ToRow r) => Connection -> ByteString -> IO [r] 
-getTokenInfo con hash = 
 
-validateToken :: Connection -> ByteString -> IO Int64
-validateToken con tokenHash = do
-  beginTransaction con
-  
-  pure 0
+---- if [] len == 0 then the token is not valid 
+getTokenInfo :: Connection -> ByteString -> IO [TokenValidityInfo]
+getTokenInfo con tokenHash = do
+  sQuery <- getTokenInfoQuery
+  query con sQuery $ Only $ Binary tokenHash
+
+consumeToken :: Connection -> ByteString -> IO Int64
+consumeToken con tokenHash = do
+  sQuery <- consumeTokenQuery
+  execute con sQuery $ Only $ Binary tokenHash
+
 --- sql query function helpers 
 runQueries_ :: Connection -> [Query] -> IO Int64
 runQueries_ con queries = sum <$> mapM (execute_ con) queries 
@@ -115,3 +124,6 @@ insertEnrollmentTokenQuery = readQueryFile "./queries/registration/insert-token.
 
 getTokenInfoQuery :: IO Query
 getTokenInfoQuery = readQueryFile "./queries/registration/get-token-validation-info.sql"
+
+consumeTokenQuery :: IO Query
+consumeTokenQuery = readQueryFile "./queries/registration/consume-token.sql"

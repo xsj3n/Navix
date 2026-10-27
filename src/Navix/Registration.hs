@@ -1,28 +1,36 @@
-module Navix.Registration where
+module Navix.Registration where 
 import Network.Wai (Request (requestBodyLength), getRequestBodyChunk, RequestBodyLength (ChunkedBody, KnownLength), strictRequestBody)
 import Database.PostgreSQL.Simple (Connection, execute)
 import Navix.DataSchema (NixMachine, NixMachineEnrollment (enrollmentToken, machineDetails))
-import qualified Data.ByteString.Char8 as BS
+import Data.ByteString
+import qualified Data.ByteString.Char8 as BSC
 import Control.Monad (void, when)
-import Navix.DatabaseInterface (getRegistrationQuery)
+import Navix.DatabaseInterface (getRegistrationQuery, insertToken, getTokenInfo)
 import Data.Aeson (decode)
-import qualified Data.ByteString.Lazy as BSL
 import Data.ByteArray.Encoding (convertToBase, Base (Base16))
 import Data.Maybe
 import System.IO (openFile, IOMode (WriteMode), hClose)
 import Crypto.Hash (Digest, hash)
 import Crypto.Hash.Algorithms (SHA256)
-import Crypto.Random
-
+import Crypto.Random (getRandomBytes)
+import qualified Data.ByteArray as BA
 
 registerMachine :: Request -> Connection -> IO Bool
 registerMachine request conn = do
-  maybenixMachine       <- processNixMachineEnrollRequest request
-  case maybenixMachine of
-    Just nixMachineEnrollment -> enrollmentTokenSearch (enrollmentToken nixMachineEnrollment) >>= \isValid ->
-        executeRegistration isValid conn $ machineDetails nixMachineEnrollment
-    Nothing  -> return False
+  maybeNixMachine       <- processNixMachineEnrollRequest request
+  if isNothing maybeNixMachine then return False
+  else do
+    let nixMachine = fromJust maybeNixMachine
+        tokenHash  = hash $ BSC.pack $ enrollmentToken nixMachine :: Digest SHA256
+    isValidated <- handleTokenValidation conn $ BA.convert tokenHash 
+    undefined
 
+handleTokenValidation :: Connection -> ByteString -> IO Bool
+handleTokenValidation conn tokenHash = do
+  tokenInfo <- getTokenInfo conn tokenHash
+  undefined
+
+   
 executeRegistration :: Bool -> Connection -> NixMachine -> IO Bool
 executeRegistration isValidToken conn nixMachine = do
   query <- getRegistrationQuery
@@ -51,12 +59,11 @@ processNixMachineEnrollRequest request  = do
 
 --- token stuff
 
-generateToken :: IO (String)
-generateToken = do
+generateToken :: Connection -> IO (ByteString, String)
+generateToken conn = do
   randBytes <- getRandomBytes 48
-  let token      = convertToBase Base16 randBytes
-      tokenHash  = hash token :: Digest SHA256
+  let token          = convertToBase Base16 randBytes
+      tokenHash      = BA.convert (hash token :: Digest SHA256)
 
-  
-
-  return token 
+  insertToken conn tokenHash   
+  return (tokenHash, token)

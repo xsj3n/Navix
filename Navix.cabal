@@ -44,7 +44,7 @@ library
                     text,
                     http-types,
                     zlib,
-                    memory,
+                    ram,
                     extra,
                     warp,
                     warp-tls,
