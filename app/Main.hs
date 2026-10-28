@@ -52,12 +52,7 @@ main = do
    -- TODO: implement allowances for pre-configured   
   whenM (null <$> listFiles PKI.certStoreDir) PKI.initPKI  
   failuresList <- PKI.verifyPKI "Navix.local" 
-  unless (null failuresList) (PKI.printAllReasons failuresList >> exitFailure)
-
-  -- enrollment tokens kept in file for now
-  doesFileExist enrollmentTokenFilePath >>= createEnrollmentTokenFile
-
-  
+  unless (null failuresList) (PKI.printAllReasons failuresList >> exitFailure)   
   databaseConnection <- DB.getDatabaseConnection
   -- maybe this should be the same as whats kept in the cert-store, maybe not
   -- let tlsOpts = mutualTLSSettings PKI.tlsCertPath PKI.tlsKeyPath

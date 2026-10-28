@@ -25,8 +25,35 @@ import System.FilePath ((</>))
 import Crypto.Hash (Digest)
 import Data.ByteString (ByteString)
 import Data.Time (UTCTime)
+import Control.Monad.State.Strict (runState, State, MonadState (put, get), StateT (runStateT), MonadIO (liftIO), evalStateT)
+import Control.Monad.Extra (replicateM)
 
+type ConnectionPool = [DatabaseConnection]
+data ConnectionType = Privileged | Unprivileged 
+data DatabaseConnection = DatabaseConnection
+  { id       :: Int
+  , conn     :: Connection
+  , connType :: ConnectionType 
+  }
 
+getTransConnection :: Int -> IO DatabaseConnection
+getTransConnection id = do
+  dbConn <- connect getConnectionInfo
+  beginTransaction dbConn
+  return DatabaseConnection {id = id, conn = dbConn, connType = Unprivileged }
+
+poolBuilder :: StateT Int IO (DatabaseConnection)
+poolBuilder = do
+  count <- get
+  con   <- liftIO (getTransConnection count)  
+  put $ count + 1
+  return con 
+  
+createConnectionPool :: Int -> IO ConnectionPool
+createConnectionPool connCount = do
+  evalStateT (replicateM connCount poolBuilder) 0
+
+  
 getConnection :: IO Connection
 getConnection = connect getConnectionInfo
 

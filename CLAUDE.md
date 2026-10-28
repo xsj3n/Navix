@@ -2,6 +2,9 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## General
+- When implementing anything, always plan & think before diving into implementation 
+
 ## What this is
 
 Navix is a Haskell backend that acts as a self-hosted fleet-management control plane for NixOS
@@ -27,6 +30,9 @@ already running by the time you have a shell prompt — no separate `pg_ctl star
 - Run all tests: `cabal test`
 - Run a single test suite: `cabal test pki-test` or `cabal test query-test`
 
+
+
+
 There are two test suites, each a plain `exitcode-stdio-1.0` executable rather than a unit-test
 framework — they call into library code and exit non-zero on failure:
 - `tests/pki/Test.hs` — runs `initPKI` then `verifyPKI`, checking cert chain validation end-to-end.
@@ -34,6 +40,10 @@ framework — they call into library code and exit non-zero on failure:
 
 `hie.yaml` maps HLS cradles to four components: `lib:Navix`, `exe:Navix`, `test:pki-test`,
 `test:query-test` — matching the four build targets in `Navix.cabal`.
+
+### Comm
+- PREFER USING THE LSP PLUGIN AS OPPOSED TO RUNNING CABAL BUILD OR TEST
+- Implement & run tests when implementing features 
 
 ## Architecture
 

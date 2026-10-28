@@ -27,7 +27,8 @@ library
                     
     hs-source-dirs: src
 
-    build-depends:  filepath,
+    build-depends:  mtl,
+                    filepath,
                     generic-data,
                     aeson,
                     directory,

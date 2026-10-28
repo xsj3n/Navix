@@ -1,8 +1,9 @@
+{-# LANGUAGE OverloadedStrings #-}
 module Navix.Registration where 
 import Network.Wai (Request (requestBodyLength), getRequestBodyChunk, RequestBodyLength (ChunkedBody, KnownLength), strictRequestBody)
 import Database.PostgreSQL.Simple (Connection, execute)
-import Navix.DataSchema (NixMachine, NixMachineEnrollment (enrollmentToken, machineDetails))
-import Data.ByteString
+import Navix.DataSchema (NixMachine, NixMachineEnrollment (enrollmentToken, machineDetails), expiresAt, TokenValidityInfo (revokedAt, usedAt))
+import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BSC
 import Control.Monad (void, when)
 import Navix.DatabaseInterface (getRegistrationQuery, insertToken, getTokenInfo)
@@ -14,6 +15,8 @@ import Crypto.Hash (Digest, hash)
 import Crypto.Hash.Algorithms (SHA256)
 import Crypto.Random (getRandomBytes)
 import qualified Data.ByteArray as BA
+import Data.Time (getCurrentTime)
+import qualified Data.List.NonEmpty as NE
 
 registerMachine :: Request -> Connection -> IO Bool
 registerMachine request conn = do
@@ -22,13 +25,7 @@ registerMachine request conn = do
   else do
     let nixMachine = fromJust maybeNixMachine
         tokenHash  = hash $ BSC.pack $ enrollmentToken nixMachine :: Digest SHA256
-    isValidated <- handleTokenValidation conn $ BA.convert tokenHash 
-    undefined
-
-handleTokenValidation :: Connection -> ByteString -> IO Bool
-handleTokenValidation conn tokenHash = do
-  tokenInfo <- getTokenInfo conn tokenHash
-  undefined
+    handleTokenValidation conn $ BA.convert tokenHash 
 
    
 executeRegistration :: Bool -> Connection -> NixMachine -> IO Bool
@@ -56,14 +53,25 @@ processNixMachineEnrollRequest request  = do
     
 
 
+-- token stuff 
+handleTokenValidation :: Connection -> BS.ByteString -> IO Bool
+handleTokenValidation conn tokenHash = do
+  tokenInfoM   <- getTokenInfo conn tokenHash >>= return . NE.nonEmpty 
+  if isNothing tokenInfoM then return False
+  else do
+    let tokenInfo = NE.head $ fromJust tokenInfoM
+    currentTime <- getCurrentTime
+    if (expiresAt tokenInfo < currentTime) ||
+       (isJust $ revokedAt tokenInfo)      ||
+       (isJust $ usedAt tokenInfo)
+    then return False
+    else return True 
 
---- token stuff
 
-generateToken :: Connection -> IO (ByteString, String)
+generateToken :: Connection -> IO (BS.ByteString, String)
 generateToken conn = do
-  randBytes <- getRandomBytes 48
-  let token          = convertToBase Base16 randBytes
+  randBytes <- getRandomBytes 48 :: IO BS.ByteString
+  let token          = "enr_" <> (convertToBase Base16 randBytes :: BS.ByteString)
       tokenHash      = BA.convert (hash token :: Digest SHA256)
-
-  insertToken conn tokenHash   
-  return (tokenHash, token)
+  insertToken conn tokenHash
+  return (tokenHash, BSC.unpack token)
