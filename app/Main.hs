@@ -5,8 +5,8 @@ import qualified Navix.DatabaseInterface as DB
 import Navix.DataSchema
 import Navix.Registration
 import Navix.TLS
+import Navix.Configuration
 import qualified Navix.PKI as PKI
-
 import qualified Network.TLS as TLS
 import Network.Wai
 import Network.Wai.Handler.WarpTLS
@@ -35,6 +35,7 @@ import Data.List.Extra (splitOn)
 import Data.List
 import System.Directory (copyFile)
 import Database.PostgreSQL.Simple (Connection)
+import Navix.DatabaseInterface (withConnection)
 
 
 isRegisterRequest :: Method -> String -> Bool
@@ -48,24 +49,26 @@ isPoll method action = method == methodGet && action == "poll"
 
 main :: IO ()
 main = do
-
-   -- TODO: implement allowances for pre-configured   
+  cfg <- loadConfiguration "./config.toml"  
+  -- TODO: implement allowances for pre-configured
   whenM (null <$> listFiles PKI.certStoreDir) PKI.initPKI  
   failuresList <- PKI.verifyPKI "Navix.local" 
   unless (null failuresList) (PKI.printAllReasons failuresList >> exitFailure)   
-  databaseConnection <- DB.getDatabaseConnection
+  pool <- DB.createConnectionPool 20
+  
   -- maybe this should be the same as whats kept in the cert-store, maybe not
   -- let tlsOpts = mutualTLSSettings PKI.tlsCertPath PKI.tlsKeyPath
   let tlsOpts = tlsSettings PKI.tlsCertPath PKI.tlsKeyPath
   let port = 3000
 
   putStrLn $ "[*] Listening on https://localhost:" ++ show port
-  runTLS tlsOpts (setPort port defaultSettings) $ app databaseConnection
+  runTLS tlsOpts (setPort port defaultSettings) $ app pool
 
 -- introduce pooled connections at some point 
-app :: Connection -> Application
-app connection request respond
-  | isRegisterRequest method action = registerMachine request connection >>= (respond . simpleResponse)
+app :: DB.ConnectionPool -> Application
+app pool request respond
+  | isRegisterRequest method action = withConnection pool request registerMachine
+    >>= (respond . simpleResponse)
   | isDeregisterRequest method action = undefined
   | isPoll method action = undefined
   | otherwise = respond $ responseLBS status400 [] "Malformed request"

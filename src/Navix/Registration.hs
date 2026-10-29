@@ -6,7 +6,7 @@ import Navix.DataSchema (NixMachine, NixMachineEnrollment (enrollmentToken, mach
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BSC
 import Control.Monad (void, when)
-import Navix.DatabaseInterface (getRegistrationQuery, insertToken, getTokenInfo)
+import Navix.DatabaseInterface (insertToken, getTokenInfo, DatabaseConnection (dbConn))
 import Data.Aeson (decode)
 import Data.ByteArray.Encoding (convertToBase, Base (Base16))
 import Data.Maybe
@@ -18,20 +18,16 @@ import qualified Data.ByteArray as BA
 import Data.Time (getCurrentTime)
 import qualified Data.List.NonEmpty as NE
 
-registerMachine :: Request -> Connection -> IO Bool
+registerMachine :: Request -> DatabaseConnection -> IO Bool
 registerMachine request conn = do
   maybeNixMachine       <- processNixMachineEnrollRequest request
   if isNothing maybeNixMachine then return False
   else do
     let nixMachine = fromJust maybeNixMachine
         tokenHash  = hash $ BSC.pack $ enrollmentToken nixMachine :: Digest SHA256
-    handleTokenValidation conn $ BA.convert tokenHash 
+    handleTokenValidation (dbConn conn) $ BA.convert tokenHash 
 
    
-executeRegistration :: Bool -> Connection -> NixMachine -> IO Bool
-executeRegistration isValidToken conn nixMachine = do
-  query <- getRegistrationQuery
-  when isValidToken (void $ execute conn query nixMachine) >> return True
 
 deregisterMachine :: Connection -> String -> ()
 deregisterMachine = undefined

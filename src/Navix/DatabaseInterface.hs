@@ -1,8 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Navix.DatabaseInterface
-  ( getDatabaseConnection
-  , getRegistrationQuery
+  ( withConnection
+  , ConnectionPool
+  , ConnectionType
+  , DatabaseConnection
+  , dbConn
+  , createConnectionPool
   , consumeToken
   , getTokenInfo
   , insertToken
@@ -27,38 +31,61 @@ import Data.ByteString (ByteString)
 import Data.Time (UTCTime)
 import Control.Monad.State.Strict (runState, State, MonadState (put, get), StateT (runStateT), MonadIO (liftIO), evalStateT)
 import Control.Monad.Extra (replicateM)
+import GHC.Conc (TVar)
+import GHC.Conc.Sync (newTVarIO)
+import Network.Wai (Request)
+import Control.Concurrent.STM (modifyTVar')
+import Control.Concurrent.STM (atomically)
+import Control.Concurrent.STM (readTVar)
+import Control.Concurrent.STM (writeTVar)
+import Control.Concurrent.STM (retry)
+import Control.Exception (bracket)
 
-type ConnectionPool = [DatabaseConnection]
+
+
+----
+---- connection management
+----
+newtype ConnectionPool = ConnectionPool (TVar [DatabaseConnection])
 data ConnectionType = Privileged | Unprivileged 
 data DatabaseConnection = DatabaseConnection
   { id       :: Int
-  , conn     :: Connection
-  , connType :: ConnectionType 
+  , dbConn     :: Connection
+  , dbConnType :: ConnectionType 
   }
 
-getTransConnection :: Int -> IO DatabaseConnection
-getTransConnection id = do
+getConnection :: Int -> IO DatabaseConnection
+getConnection id = do
   dbConn <- connect getConnectionInfo
-  beginTransaction dbConn
-  return DatabaseConnection {id = id, conn = dbConn, connType = Unprivileged }
+  return DatabaseConnection {id = id, dbConn = dbConn, dbConnType = Unprivileged }
 
 poolBuilder :: StateT Int IO (DatabaseConnection)
 poolBuilder = do
   count <- get
-  con   <- liftIO (getTransConnection count)  
+  con   <- liftIO (getConnection count)  
   put $ count + 1
   return con 
   
 createConnectionPool :: Int -> IO ConnectionPool
 createConnectionPool connCount = do
-  evalStateT (replicateM connCount poolBuilder) 0
+  conns <- evalStateT (replicateM connCount poolBuilder) 0
+  ConnectionPool <$> newTVarIO conns
 
+withConnection :: ConnectionPool -> Request -> (Request -> DatabaseConnection -> IO a) -> IO a
+withConnection (ConnectionPool var) request action  =
+  bracket acquire release (action request) 
+  where
+    acquire = atomically $ do
+      conns <- readTVar var
+      case conns of
+        []     -> retry
+        c:cs -> writeTVar var cs >> return c   
+    release c = endTransaction c >> (atomically $ modifyTVar' var (c :))
   
-getConnection :: IO Connection
-getConnection = connect getConnectionInfo
-
-getSuperUserConnection :: IO Connection
-getSuperUserConnection = connect getSuperUserConnectionInfo
+getSuperUserConnection :: IO DatabaseConnection
+getSuperUserConnection = do
+  dbConn <- connect getSuperUserConnectionInfo
+  return DatabaseConnection { id = 0, dbConn = dbConn, dbConnType = Privileged }
 
 
 getConnectionInfo :: ConnectInfo
@@ -79,27 +106,24 @@ getSuperUserConnectionInfo = defaultConnectInfo
   }
 
 
--- does some init stuff then returns a connection
-getDatabaseConnection :: IO Connection
-getDatabaseConnection = do
+-- does some init stuff to make sure the db is ready 
+initDatabase :: IO ()
+initDatabase = do
   superUserConnection <- getSuperUserConnection
   putStrLn "[*] Connected to database as superuser for database check"
-  [Only (result :: Bool)] <- query_ superUserConnection checkForDatabaseQuery
+  [Only (result :: Bool)] <- query_ (dbConn superUserConnection) checkForDatabaseQuery
   unless result $ (void $ createDatabaseQuery >>= runQueries_ superUserConnection)
-  close superUserConnection
-  getConnection
+  close $ dbConn superUserConnection
 
-
--- enrollment related
-
----- this shouldnt fail unless the connection fails 
+----
+---- enrollment token related
+----
 insertToken :: Connection -> ByteString  -> IO Int64
 insertToken con tokenHash = do
   sQuery <- insertEnrollmentTokenQuery
   execute con sQuery $ Only $ Binary tokenHash
 
 
----- if [] len == 0 then the token is not valid 
 getTokenInfo :: Connection -> ByteString -> IO [TokenValidityInfo]
 getTokenInfo con tokenHash = do
   sQuery <- getTokenInfoQuery
@@ -110,20 +134,45 @@ consumeToken con tokenHash = do
   sQuery <- consumeTokenQuery
   execute con sQuery $ Only $ Binary tokenHash
 
---- sql query function helpers 
-runQueries_ :: Connection -> [Query] -> IO Int64
-runQueries_ con queries = sum <$> mapM (execute_ con) queries 
+
+insertEnrollmentTokenQuery :: IO Query
+insertEnrollmentTokenQuery = readQueryFile "./queries/registration/insert-token.sql" 
+
+getTokenInfoQuery :: IO Query
+getTokenInfoQuery = readQueryFile "./queries/registration/get-token-validation-info.sql"
+
+consumeTokenQuery :: IO Query
+consumeTokenQuery = readQueryFile "./queries/registration/consume-token.sql"
+
+----
+---- registration related
+----
+getRegistrationQuery :: IO Query
+getRegistrationQuery = readQueryFile "./queries/register.sql"
+
+checkForDatabaseQuery :: Query
+checkForDatabaseQuery = "select exists (select 1 from pg_database where datname = 'managed');"
+
+createDatabaseQuery :: IO [Query]
+createDatabaseQuery = readQueryFiles "./queries/init/table-creation.sql"
+
+----
+---- sql query function helpers 
+----
+
+runQueries_ :: DatabaseConnection -> [Query] -> IO Int64
+runQueries_ con queries = sum <$> mapM (execute_ $ dbConn con) queries 
 
 -- transaction wrappers, may use them, but only if i need to use these within other modules,
 -- which, to be fair, i shouldnt 
-beginTransaction :: Connection -> IO ()
-beginTransaction con = begin con
+beginTransaction :: DatabaseConnection -> IO ()
+beginTransaction con = begin $ dbConn con
 
-endTransaction :: Connection -> IO ()
-endTransaction con = commit con
+endTransaction :: DatabaseConnection -> IO ()
+endTransaction con = commit $ dbConn con
 
-rollbackTransaction :: Connection -> IO ()
-rollbackTransaction con = rollback con
+rollbackTransaction :: DatabaseConnection -> IO ()
+rollbackTransaction con = rollback $ dbConn con
 
 -- helper functions for reading sql queries out of files
 -- preferable to keep sql & code logic separate 
@@ -137,20 +186,4 @@ readQueryFiles dir =  do
 readQueryFile :: FilePath -> IO Query
 readQueryFile path = fromString <$> readFile path 
 
-getRegistrationQuery :: IO Query
-getRegistrationQuery = readQueryFile "./queries/register.sql"
 
-checkForDatabaseQuery :: Query
-checkForDatabaseQuery = "select exists (select 1 from pg_database where datname = 'managed');"
-
-createDatabaseQuery :: IO [Query]
-createDatabaseQuery = readQueryFiles "./queries/init/table-creation.sql"
-
-insertEnrollmentTokenQuery :: IO Query
-insertEnrollmentTokenQuery = readQueryFile "./queries/registration/insert-token.sql" 
-
-getTokenInfoQuery :: IO Query
-getTokenInfoQuery = readQueryFile "./queries/registration/get-token-validation-info.sql"
-
-consumeTokenQuery :: IO Query
-consumeTokenQuery = readQueryFile "./queries/registration/consume-token.sql"

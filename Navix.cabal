@@ -19,15 +19,17 @@ common warnings
 library
     exposed-modules: Navix.PKI,
                      Navix.DataSchema,
-                     Navix.Net,
+                     Navix.Poll,
                      Navix.DatabaseInterface,
                      Navix.Registration,
                      Navix.TLS,
-                     Navix.Log
-                    
+                     Navix.Log,
+                     Navix.Configuration
+
     hs-source-dirs: src
 
     build-depends:  mtl,
+                    stm,
                     filepath,
                     generic-data,
                     aeson,
@@ -53,6 +55,7 @@ library
                     wai,
                     network,
                     time,
+                    tomland,
                     base
 
     default-language: GHC2024

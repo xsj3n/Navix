@@ -23,10 +23,12 @@
       openssl
       postgresql
       pkg-config
+      
     ];
 
     shellPackages = [
       hpkgs.hoogle
+      hpkgs.bhoogle
     ];
         
     nativeBuildInputs = haskell_tools ++ tools ++ shellPackages;

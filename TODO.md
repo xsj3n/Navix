@@ -6,4 +6,5 @@
 [ ] - implement a way for admins to configure PKI themselves  
 [ ] - find a way to implement a push channel 
 [ ] - user identities
-[ ] - make bootleg connection pool 
+[x] - make bootleg connection pool 
+[ ] - config file

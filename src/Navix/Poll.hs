@@ -1,4 +1,4 @@
-module Navix.Net where
+module Navix.Poll where
 import Network.Wai (Request, getRequestBodyChunk)
 import Database.PostgreSQL.Simple (Connection)
 import qualified Data.ByteString as BS
