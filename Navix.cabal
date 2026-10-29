@@ -29,6 +29,7 @@ library
     hs-source-dirs: src
 
     build-depends:  mtl,
+                    exception,
                     stm,
                     filepath,
                     generic-data,

@@ -6,5 +6,8 @@
 [ ] - implement a way for admins to configure PKI themselves  
 [ ] - find a way to implement a push channel 
 [ ] - user identities
-[x] - make bootleg connection pool 
+[x] - make bootleg connection pool
+  [ ] - improve on it by rebalancing conns 
 [ ] - config file
+[ ] - error handling
+[ ] - actually add logging statements 

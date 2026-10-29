@@ -5,7 +5,8 @@ create table if not exists nix.machines(
     deviceName text not null,
     assignedCert text not null,
     hardwareFingerprint text not null,
-    status boolean not null default true,
+    enabled boolean not null default true,
+    compliant boolean not null default false,
     createdAt timestamptz not null default now(),
     unique (assignedCert, hardwareFingerprint)
 );

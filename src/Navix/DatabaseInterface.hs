@@ -8,6 +8,7 @@ module Navix.DatabaseInterface
   , dbConn
   , createConnectionPool
   , consumeToken
+  , insertMachine 
   , getTokenInfo
   , insertToken
   , readQueryFile
@@ -73,7 +74,7 @@ createConnectionPool connCount = do
 
 withConnection :: ConnectionPool -> Request -> (Request -> DatabaseConnection -> IO a) -> IO a
 withConnection (ConnectionPool var) request action  =
-  bracket acquire release (action request) 
+  generalBracket acquire release (action request) 
   where
     acquire = atomically $ do
       conns <- readTVar var
@@ -156,6 +157,11 @@ checkForDatabaseQuery = "select exists (select 1 from pg_database where datname 
 createDatabaseQuery :: IO [Query]
 createDatabaseQuery = readQueryFiles "./queries/init/table-creation.sql"
 
+insertMachine :: DatabaseConnection -> NixMachine -> IO Int64
+insertMachine conn nixMachine = do
+  sQuery <- getRegistrationQuery
+  execute (dbConn conn) sQuery nixMachine  
+
 ----
 ---- sql query function helpers 
 ----
@@ -168,11 +174,11 @@ runQueries_ con queries = sum <$> mapM (execute_ $ dbConn con) queries
 beginTransaction :: DatabaseConnection -> IO ()
 beginTransaction con = begin $ dbConn con
 
-endTransaction :: DatabaseConnection -> IO ()
-endTransaction con = commit $ dbConn con
+endTransaction :: Bool -> DatabaseConnection -> IO ()
+endTransaction isOkay con
+  | isOkay == True  = commit $ dbConn con 
+  | isOkay == False = rollback $ dbConn con 
 
-rollbackTransaction :: DatabaseConnection -> IO ()
-rollbackTransaction con = rollback $ dbConn con
 
 -- helper functions for reading sql queries out of files
 -- preferable to keep sql & code logic separate 

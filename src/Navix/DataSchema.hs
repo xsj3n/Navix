@@ -9,8 +9,6 @@ import Database.PostgreSQL.Simple.ToRow
 import Database.PostgreSQL.Simple.ToField
 import Data.Time (UTCTime)
 
-
-
 data PollResponse = PollResponse
   { wipe          :: Bool
   , rebuild       :: Bool
@@ -38,21 +36,27 @@ instance FromRow PollResponse where
     fromRow = PollResponse <$> field <*> field <*> field <*> field <*> field <*> field <*> field
 ------------------------------
 data NixMachine = NixMachine
-  { assignedCert        :: String
+  { id                  :: Int
+  , deviceName          :: String 
+  , assignedCert        :: String
   , hardwareFingerprint :: String
+  , enabled             :: Bool
+  , compliant           :: Bool
+  , createdAt           :: UTCTime
   } deriving (Generic, Show)
 
 instance FromJSON NixMachineEnrollment where
 instance ToJSON   NixMachineEnrollment where
 
 instance ToRow NixMachine where
-  toRow (NixMachine assignedCert hardwareFingerprint) =
-    [ toField assignedCert
+  toRow (NixMachine _id deviceName assignedCert hardwareFingerprint _enabled _compliant _createdAt) =
+    [ toField deviceName
+    , toField assignedCert
     , toField hardwareFingerprint
     ]
 
 instance FromRow NixMachine where
-  fromRow = NixMachine <$> field <*> field
+  fromRow = NixMachine <$> field <*> field <*> field <*> field <*> field <*> field <*> field
 
 ----------
 

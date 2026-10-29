@@ -6,7 +6,7 @@ import Navix.DataSchema (NixMachine, NixMachineEnrollment (enrollmentToken, mach
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BSC
 import Control.Monad (void, when)
-import Navix.DatabaseInterface (insertToken, getTokenInfo, DatabaseConnection (dbConn))
+import Navix.DatabaseInterface (insertToken, getTokenInfo, DatabaseConnection (dbConn), insertMachine)
 import Data.Aeson (decode)
 import Data.ByteArray.Encoding (convertToBase, Base (Base16))
 import Data.Maybe
@@ -25,7 +25,8 @@ registerMachine request conn = do
   else do
     let nixMachine = fromJust maybeNixMachine
         tokenHash  = hash $ BSC.pack $ enrollmentToken nixMachine :: Digest SHA256
-    handleTokenValidation (dbConn conn) $ BA.convert tokenHash 
+    handleTokenValidation (dbConn conn) $ BA.convert tokenHash
+    insertMachine conn nixMachine
 
    
 
